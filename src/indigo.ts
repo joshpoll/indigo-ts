@@ -119,8 +119,6 @@ const check_constraint = (c: Constraint, activeConstraints: Set<Constraint>): vo
 TODO: intersect returns `null` if the intersection fails. not sure how to deal with that b/c need to
 catch it to determine unsat.
 
-TODO: inequality constraints
-TODO: affine versions of the above
 TODO: min and max
 */
 
