@@ -12,6 +12,7 @@
 /build
 **/dist
 **/tsconfig.tsbuildinfo
+/.cache
 
 # misc
 .DS_Store
