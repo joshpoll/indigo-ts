@@ -191,8 +191,15 @@ export type CanonicalAffineConstraint = CanonicalAffineExpr & {op: 'eq' | 'le' |
 const canonicalizeAffineConstraint = (c: AffineConstraint): CanonicalAffineConstraint => {
   const cLHS = canonicalizeExpr(c.lhs);
   const cRHS = canonicalizeExpr(c.rhs);
+  console.log('canonical here', cLHS, c.op, cRHS);
   const lhsMinusRhsTerms = new Map(cLHS.terms);
-  cRHS.terms.forEach((v, k) => lhsMinusRhsTerms.has(k) ? lhsMinusRhsTerms.set(k, lhsMinusRhsTerms.get(k) - v) : -v);
+  cRHS.terms.forEach((v, k) => {
+  if (lhsMinusRhsTerms.has(k)) {
+    lhsMinusRhsTerms.set(k, lhsMinusRhsTerms.get(k) - v)
+  } else {
+    lhsMinusRhsTerms.set(k, -v);
+  }
+});
   lhsMinusRhsTerms.forEach((v, k, m) => is_close(v, 0) ? m.delete(k) : {})
   const lhsMinusRhs = { terms: lhsMinusRhsTerms, bias: cLHS.bias - cRHS.bias };
   return {
@@ -247,12 +254,14 @@ export const mkAffineConstraint = (lhs: AffineExpr, op: 'eq' | 'le' | 'ge', rhs:
     return [v, () => {
       /* a_1x_1 + ... + a_ix_i + ... + a_nx_n + b = 0 -> x_i = -1/a_i * (a_1x_1 + ... + a_nx_n + b)
         (without x_i ofc) */
+    console.log('canonicalConstraint', canonicalConstraint);
     const vExprBounds = Interval.div(
       Array.from(canonicalConstraint.terms.entries())
         .reduce((acc, [x_i, a_i]) => {
           return x_i === v ? acc : Interval.add(acc, Interval.mul(Interval.fromFloat(a_i), x_i.v.bounds))},
                 Interval.fromFloat(canonicalConstraint.bias)),
       Interval.fromFloat(-canonicalConstraint.terms.get(v)))
+      console.log('vExprBounds', vExprBounds);
       if (canonicalConstraint.op === 'eq') {
         // v.v.bounds = Interval.intersect(v.v.bounds, vExprBounds);
         v.v.bounds = Interval.intersectBestEffort(v.v.bounds, vExprBounds);

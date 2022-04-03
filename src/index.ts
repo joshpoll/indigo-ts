@@ -1,4 +1,4 @@
-import { mkConstEqConstraint, mkVar, solve, value, mkEqConstraint, mkAffineConstraint, plus, weak, medium } from './indigo';
+import { mkConstEqConstraint, mkVar, solve, value, mkEqConstraint, mkAffineConstraint, plus, mul, weak, medium } from './indigo';
 import * as Adapton from './miniAdapton/microAdapton';
 
 console.log("hello world");
@@ -71,6 +71,25 @@ console.log(Adapton.compute(a));
   solve(constraints);
   console.log(constraints.map(c => c.toString()));
   console.log(`x: ${value(x)}, y: ${value(y)}`);
+}
+
+{
+  // TODO: the inequality constraint is not properly respected...
+  const x = mkVar('x');
+  const y = mkVar('y');
+  const z = mkVar('z');
+  const constraints = [
+    // medium default constraints
+    mkAffineConstraint(x, 'ge', 0, medium),
+    mkAffineConstraint(y, 'ge', 0, medium),
+    mkAffineConstraint(z, 'ge', 0, medium),
+    // spacing constraints
+    mkAffineConstraint(plus(x, 5), 'eq', y),
+    mkAffineConstraint(plus(y, 5), 'eq', z),
+  ];
+  solve(constraints);
+  console.log(constraints.map(c => c.toString()));
+  console.log(`x: ${value(x)}, y: ${value(y)}, z: ${value(z)}`);
 }
 
 {
