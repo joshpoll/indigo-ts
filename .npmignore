@@ -10,7 +10,7 @@
 
 # production
 /build
-**/dist
+**/src
 **/tsconfig.tsbuildinfo
 /.cache
 .rollup.cache
