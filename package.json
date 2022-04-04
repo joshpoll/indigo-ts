@@ -2,8 +2,8 @@
   "name": "indigo-ts",
   "version": "0.3.0",
   "description": "",
-  "main": "./dist/main.js",
-  "types": "./dist/main.d.ts",
+  "main": "./main.js",
+  "types": "./main.d.ts",
   "scripts": {
     "start": "parcel src/index.html & tsc --watch --noEmit",
     "build": "npx rollup -c rollup.config.ts"
