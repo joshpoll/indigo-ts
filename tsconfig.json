@@ -17,13 +17,11 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "rootDir": "src",
     "outDir": "./dist",
     "composite": true,
   },
   "include": [
-    "lib/*",
-    "src/*",
-    "src/miniAdapton",
-    "rollup.config.ts"
+    "src",
   ]
 }
