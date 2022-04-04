@@ -11,9 +11,8 @@
           "dom"
       ],
       "noUnusedLocals": true,
-      "module": "commonjs",
+      "module": "esnext",
       "strict": false,
-      "resolveJsonModule": true,
       "esModuleInterop": true,
   },
   "include": [ "lib/*", "src/*" ]

@@ -60,6 +60,16 @@ export const div = (i1: t, i2: t): t => {
   }
 }
 
+export const max = (i1: t, i2: t): t => ({
+  lb: Math.max(i1.lb, i2.lb),
+  ub: Math.max(i1.ub, i2.ub),
+})
+
+export const min = (i1: t, i2: t): t => ({
+  lb: Math.min(i1.lb, i2.lb),
+  ub: Math.min(i1.ub, i2.ub),
+})
+
 export const is_close = (i1: t, i2: t, tol=1e-5): boolean => {
   return Math.abs(i1.lb - i2.lb) < tol && Math.abs(i1.ub - i2.ub) < tol;
 }
