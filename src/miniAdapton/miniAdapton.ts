@@ -13,5 +13,5 @@ export function force<T>(a: Adapton.Adapton<T>): T {
   return result;
 }
 export namespace force {
-  export let currentlyAdapting = undefined;
+  export let currentlyAdapting: Adapton.Adapton<any> | undefined = undefined;
 }

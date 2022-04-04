@@ -1,19 +1,29 @@
 {
   "compilerOptions": {
-      "target": "es5",
-      "sourceMap": true,
-      "noImplicitAny": true,
-      "noImplicitReturns": true,
-      "lib": [
-          "es2019",
-          "es5",
-          "es6",
-          "dom"
-      ],
-      "noUnusedLocals": true,
-      "module": "esnext",
-      "strict": false,
-      "esModuleInterop": true,
+    "target": "es5",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "lib": [
+      "es2019",
+      "es5",
+      "es6",
+      "dom"
+    ],
+    "noUnusedLocals": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": false,
+    "esModuleInterop": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "composite": true,
   },
-  "include": [ "lib/*", "src/*" ]
+  "include": [
+    "lib/*",
+    "src/*",
+    "src/miniAdapton",
+    "rollup.config.ts"
+  ]
 }
