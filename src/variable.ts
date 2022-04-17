@@ -1,19 +1,19 @@
 import * as Interval from './interval';
 
-export type t = {id: string, bounds: Interval.t}
+export type t = { id: string, bounds: Interval.t }
 
 export const tighten = (v: t, i: Interval.t): t => {
   const intersect = Interval.intersect(v.bounds, i);
   if (intersect !== null) {
-    return {...v, bounds: intersect}
+    return { ...v, bounds: intersect }
   } else {
     // the constraints are actually unsatisfiable at this point
     // this code helps us find a locally-error-best solution
-    const {lb: vLB, ub: vUB} = v.bounds;
+    const { lb: vLB, ub: vUB } = v.bounds;
     if (v.bounds.ub < i.lb) {
-      return {...v, bounds: {lb: vUB, ub: vUB}};
+      return { ...v, bounds: { lb: vUB, ub: vUB } };
     } else {
-      return {...v, bounds: {lb: vLB, ub: vLB}};
+      return { ...v, bounds: { lb: vLB, ub: vLB } };
     }
   }
 }
@@ -29,4 +29,11 @@ export const isConst = (v: t): boolean => {
   return Math.abs(v.bounds.ub - v.bounds.lb) < TOLERANCE;
 }
 
-export const value = (v: t): number => (v.bounds.ub + v.bounds.lb) / 2;
+export const value = (v: t): number => {
+  if (v.bounds.ub === Infinity && v.bounds.lb === -Infinity) {
+    console.warn(`got variable with infinite bounds, evaluating to 0`, v);
+    return 0
+  } else {
+    return (v.bounds.ub + v.bounds.lb) / 2;
+  }
+}

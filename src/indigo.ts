@@ -52,6 +52,67 @@ export const value = (v: Variable): number => VariableFoo.value(v.v);
 
 type Queue = Constraint[];
 
+// TODO: this doesn't work b/c propagation happens through constraint references in variables!!
+// /* Solve the problem by saturating constraints in order of priority. */
+// export const layeredSolve = (constraints: Constraint[]): void => {
+//   // sort and group constraints in descending order by strength
+//   const layers = _.groupBy(constraints, (c) => c.strength);
+//   const layerEntries = Object.entries(layers).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
+//   for (const [_strength, constraints] of layerEntries) {
+//     solve(constraints);
+//   }
+// }
+
+/* Solve the problem by saturating constraints in order of priority. Iterate each problem until fixpoint. */
+export const iterativeSolve = (constraints: Constraint[]): void => {
+  // sort and group constraints in descending order by strength
+  const layers = _.groupBy(constraints, (c) => c.strength);
+  const layerEntries = Object.entries(layers).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
+  for (const [strength, constraints] of layerEntries) {
+    /* while some variable's bounds have changed */
+    /* using the _old_ bounds of the variables, every constraint creates an update for each of its
+    variables */
+    /* intersect _all_ of these updates to generate a new, more precise variable set */
+    /* at the end, do a best-effort intersection. (TODO: this might not be sound, because some
+    things might propagate, but other things might not...) */
+    const activeConstraints: Set<Constraint> = new Set();
+    for (const constraint of constraints) {
+      console.log(`solving: ${constraint}`);
+      const tightVariables: Set<Variable> = new Set();
+      const queue = [constraint];
+      while (queue.length > 0) {
+        const c = queue[0];
+        console.log(`visiting: ${c}`);
+        tighten_bounds(c, queue, tightVariables, activeConstraints, parseFloat(strength));
+        check_constraint(c, activeConstraints);
+        queue.shift();
+      }
+    }
+  }
+}
+
+/* Solve the problem by saturating constraints in order of priority. */
+export const layeredSolve = (constraints: Constraint[]): void => {
+  // sort and group constraints in descending order by strength
+  const layers = _.groupBy(constraints, (c) => c.strength);
+  const layerEntries = Object.entries(layers).sort((a, b) => parseFloat(b[0]) - parseFloat(a[0]));
+  for (const [strength, constraints] of layerEntries) {
+    const activeConstraints: Set<Constraint> = new Set();
+    for (const constraint of constraints) {
+      console.log(`solving: ${constraint}`);
+      const tightVariables: Set<Variable> = new Set();
+      const queue = [constraint];
+      while (queue.length > 0) {
+        const c = queue[0];
+        console.log(`visiting: ${c}`);
+        tighten_bounds(c, queue, tightVariables, activeConstraints, parseFloat(strength));
+        check_constraint(c, activeConstraints);
+        queue.shift();
+      }
+    }
+  }
+}
+
 export const solve = (constraints: Constraint[]): void => {
   console.log('begin solve', constraints.map(c => c.toString()))
   constraints.sort((c1, c2) => c2.strength - c1.strength);
@@ -72,30 +133,33 @@ export const solve = (constraints: Constraint[]): void => {
   }
 }
 
-const tighten_bounds = (c: Constraint, q: Queue, tightVariables: Set<Variable>, activeConstraints: Set<Constraint>): void => {
+const tighten_bounds = (c: Constraint, q: Queue, tightVariables: Set<Variable>, activeConstraints: Set<Constraint>, strength=-1): void => {
   c.vars.forEach((v: Variable) => {
     console.log(`variable ${v}`);
     console.log(`tightVariables`, Array.from(tightVariables.values()).map(v => v.toString()));
     if (tightVariables.has(v)) return;
     const oldBounds = v.v.bounds;
     c.tighten.get(v)();
-    // TODO: maybe only add tight variables when they stop making progress? idk
-    tightVariables.add(v);
     console.log('bounds', oldBounds, v.v.bounds);
     if (!Interval.is_close(oldBounds, v.v.bounds)) {
       console.log(`${v} changed from`, oldBounds, `to`, v.v.bounds);
+      /* TODO: oh no! v owns its constraints... :( */
       v.constraints.forEach((c: Constraint) => {
-        if (activeConstraints.has(c) && q.find((o) => c === o) === undefined) {
+        if (c.strength >= strength && activeConstraints.has(c) && q.find((o) => c === o) === undefined) {
           q.push(c);
         }
       })
+    } else {
+      // a variable is tight if we can't make any more progress
+      tightVariables.add(v);
     }
   })
 }
 
 const check_constraint = (c: Constraint, activeConstraints: Set<Constraint>): void => {
   if (c.strength === required && c.status() === 'unsat') {
-    throw 'Required constraint is not satisfied';
+    throw `Required constraint is not satisfied: ${c.toString()}
+Variables: ${Array.from(c.vars.values()).map((v) => `{${v.v.id}: [${v.v.bounds.lb}, ${v.v.bounds.ub}]}`).join(', ')}`;
   } else if (c.vars.size === 1) {
     // even if a unary constraint is not a constant equality, we don't learn anything new from
     // evaluating it more than once by monotonicity
@@ -128,7 +192,7 @@ export const mkConstEqConstraint = (x: Variable, c: number, strength=required): 
     // x.v.bounds = Interval.intersect(x.v.bounds, Interval.fromFloat(c));
     x.v.bounds = Interval.intersectBestEffort(x.v.bounds, Interval.fromFloat(c));
   }]]),
-  () => `${x} = ${c}`,
+  () => `${x} = ${c} (${strength})`,
   () => {
     if (!isConst(x.v)) {
       return 'unknown'
@@ -151,7 +215,7 @@ export const mkEqConstraint = (x: Variable, y: Variable, strength=required): Con
       y.v.bounds = Interval.intersectBestEffort(y.v.bounds, x.v.bounds);
     }],
   ]),
-  () => `${x} = ${y}`,
+  () => `${x} = ${y} (${strength})`,
   () => {
     if (!(isConst(x.v) && isConst(y.v))) {
       return 'unknown'
@@ -174,6 +238,22 @@ export type AffineExpr =
 | Variable
 | Plus
 | Mul
+
+namespace AffineExpr {
+  export const toString = (e: AffineExpr): string => {
+    if (typeof e === 'number') {
+      return `${e}`;
+    } else if ('v' in e) {
+      return e.toString();
+    } else if (e.type === 'plus') {
+      return `(+ ${e.exprs.map(toString).join(' ')})`
+    } else if (e.type === 'mul') {
+      return `(* ${e.scalar} ${toString(e.expr)})`
+    } else {
+      throw 'never'
+    }
+  }
+}
 
 // a_1x_1 + ... + a_nx_n + b
 export type CanonicalAffineExpr = {
@@ -274,7 +354,10 @@ export const mkAffineConstraint = (lhs: AffineExpr, op: 'eq' | 'le' | 'ge', rhs:
       }
     }]
   })),
-  () => `${lhs} ${op} ${rhs}`, /* TODO: do better */
+  () => {
+    const prettyOp = op === 'eq' ? '≡' : op === 'le' ? '≤' : op === 'ge' ? '≥' : op;
+    return `${AffineExpr.toString(lhs)} ${prettyOp} ${AffineExpr.toString(rhs)} (${strength})`
+  },
   () => {
     if (!(Array.from(canonicalConstraint.terms.keys()).every((v) => isConst(v.v)))) {
       return 'unknown'
@@ -296,3 +379,40 @@ export const mkAffineConstraint = (lhs: AffineExpr, op: 'eq' | 'le' | 'ge', rhs:
   strength,
 )
 }
+
+const emptyConstraint = () => mkConstraint(new Set([]), new Map([]), () => 'empty constraint', () => 'sat', required);
+
+export const mkMaxMinConstraint = (x: Variable, op: 'max' | 'min', ys: Variable[], strength=required): Constraint => 
+ys.length === 0 ? emptyConstraint() :
+mkConstraint(
+  new Set([x, ...ys]),
+  new Map([
+    [x, () => {
+      x.v.bounds = ys.reduce((prev, curr) => Interval[op](prev, curr.v.bounds), op === 'max' ? Interval.fromFloat(-Infinity) : Interval.fromFloat(Infinity))
+    }],
+    ...ys.map((y): [any, any] => [y, () => {
+      if (op === 'max') {
+        y.v.bounds = Interval.intersectBestEffort(y.v.bounds, { ub: x.v.bounds.ub, lb: -Infinity });
+      } else if (op === 'min') {
+        y.v.bounds = Interval.intersectBestEffort(y.v.bounds, { ub: Infinity, lb: x.v.bounds.lb });
+      } else {
+        throw 'never'
+      }
+    }]),
+  ]),
+  () => `${x} = ${op}(${ys.join(', ')}) (${strength})`,
+  () => {
+    if (!(isConst(x.v) && ys.every(({v}) => isConst(v)))) {
+      return 'unknown'
+    } else {
+      if (op === 'max') {
+        return is_close(value(x), Math.max(...ys.map(value))) ? 'sat' : 'unsat';
+      } else if (op === 'min') {
+        return is_close(value(x), Math.min(...ys.map(value))) ? 'sat' : 'unsat';
+      } else {
+        throw 'never'
+      }
+    }
+  },
+  strength,
+)

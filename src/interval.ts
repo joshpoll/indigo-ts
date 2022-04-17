@@ -70,6 +70,18 @@ export const min = (i1: t, i2: t): t => ({
   ub: Math.min(i1.ub, i2.ub),
 })
 
+export const is_close_float = (x: number, y: number, tol=1e-5): boolean => {
+  if (x === Infinity && y === Infinity) {
+    return true;
+  } else if (x === -Infinity && y === -Infinity) {
+    return true;
+  } else if (!isFinite(x) || !isFinite(y)) {
+    return false;
+  } else {
+    return Math.abs(x - y) < tol;
+  }
+}
+
 export const is_close = (i1: t, i2: t, tol=1e-5): boolean => {
-  return Math.abs(i1.lb - i2.lb) < tol && Math.abs(i1.ub - i2.ub) < tol;
+  return is_close_float(i1.lb, i2.lb) && is_close_float(i1.ub, i2.ub);
 }
